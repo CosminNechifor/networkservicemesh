@@ -14,7 +14,7 @@ data:
     server {
       bind_address = "0.0.0.0"
       bind_port = "8081"
-      trust_domain = "test.com"
+      trust_domain = "{{ .Values.trustDomain }}"
       data_dir = "/run/spire/data"
       log_level = "DEBUG"
       default_svid_ttl = "1h"
