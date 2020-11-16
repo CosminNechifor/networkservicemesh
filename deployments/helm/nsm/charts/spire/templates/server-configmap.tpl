@@ -24,6 +24,24 @@ data:
         organization = ["SPIFFE"],
         common_name = "",
       }
+      federation {
+        bundle_endpoint {
+            address = "0.0.0.0"
+            port = 8443
+        }
+        federates_with "member1.com" {
+            bundle_endpoint {
+                address = "172.17.254.1"
+                port = 8443
+            }
+        }
+        federates_with "member2.com" {
+            bundle_endpoint {
+                address = "172.17.253.1"
+                port = 8443
+            }
+        }
+      }
     }
     plugins {
       DataStore "sql" {
