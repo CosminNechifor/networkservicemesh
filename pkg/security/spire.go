@@ -19,7 +19,9 @@ package security
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -36,71 +38,66 @@ const (
 
 type spireProvider struct {
 	address string
-	peer *workloadapi.Client
+	x509Src *workloadapi.X509Source
 }
 
 func NewSpireProvider(addr string) (Provider, error) {
 	if len(addr) == 0 {
 		addr = SpireAgentUnixAddr
 	}
-
-	p, err := workloadapi.New(
-		context.Background(),
-		workloadapi.WithAddr(addr),
+	ctx := context.Background()
+	x509Src, err := workloadapi.NewX509Source(
+		ctx,
+		workloadapi.WithClientOptions(
+			workloadapi.WithAddr(addr),
+		),
 	)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Info("Obtained x509Src:", x509Src)
 
 	go func() {
-		svid, err := p.FetchX509SVID(context.TODO())
+		// returning the workload SVID
+		svid, err := x509Src.GetX509SVID()
 		if err != nil {
-			logrus.Info("Error:", err)
-			return
+			logrus.Error("Failed getting the SVID with error:", err)
 		}
-		logrus.Info("Issued identity:", svid.ID.URL())
+		if svid != nil {
+			logrus.Info("Issued identity:", svid.ID.URL())
+		}
 	}()
 
 	return &spireProvider{
-		peer: p,
 		address: addr,
+		x509Src: x509Src,
 	}, nil
 }
 
 func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
-	svid, err := p.peer.FetchX509SVID(ctx)
-	if err != nil {
-		logrus.Error("Could not get the x509 source.", err)
-		return nil, err
+	svid, err := p.x509Src.GetX509SVID()
+	if err != nil || svid == nil {
+		logrus.Errorf(
+			"Error:%v SVID: %v",
+			err,
+			svid,
+		)
+		return nil, errors.New("failed getting the SVID")
 	}
-	logrus.Info("svid:", svid)
-
-	bundlesSet, err := p.peer.FetchX509Bundles(ctx)
-	if err != nil {
-		logrus.Info("Failed to get bundles set.")
-		return nil, err
-	}
-	logrus.Info("bundleSet:", bundlesSet)
 
 	trustDomain := svid.ID.TrustDomain()
-	logrus.Info("Trust domain:", trustDomain.String())
 
-	bundle, err := bundlesSet.GetX509BundleForTrustDomain(trustDomain)
+	bundle, err := p.x509Src.GetX509BundleForTrustDomain(trustDomain)
 	if err != nil {
-		logrus.Info(
-			"Failed to get bundle of trustDomain.",
-			trustDomain.String(),
-		)
-		return nil, err
+		logrus.Info("Failed getting the bundle with err:", err)
 	}
-	logrus.Infof("Got bundle %v for trust domain: %v", bundle, bundle.TrustDomain().String())
+	logrus.Info("Obtained bundle for trust domain:", trustDomain)
 
 	tlsConfig := tlsconfig.MTLSClientConfig(
 		svid,
 		bundle,
 		tlsconfig.AuthorizeMemberOf(trustDomain),
 	)
-	logrus.Info("tlsconfig:", tlsConfig)
 	return tlsConfig, nil
 }
 
@@ -113,57 +110,21 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 	if err != nil {
 		return nil, err
 	}
-
 	logrus.Info("TrustDomain:", trustDomain)
 
-	bundlesSet, err := p.peer.FetchX509Bundles(ctx)
+	bundleSrc, err := p.x509Src.GetX509BundleForTrustDomain(trustDomain)
 	if err != nil {
-		logrus.Error("Failed to get bundles set.")
+		logrus.Info("Could not obtain trust domain bundle", err)
 		return nil, err
 	}
-	logrus.Info("bundleset:", bundlesSet)
+	logrus.Info("Obtained bundle for trust domain:", trustDomain)
 
-	bundle, err := bundlesSet.GetX509BundleForTrustDomain(trustDomain)
-	if err != nil {
-		logrus.Error(
-			"Failed to get bundle of trustDomain",
-			trustDomain.String(),
-		)
-		return nil, err
-	}
-	logrus.Info("bundle:", bundle)
-
-	svids, err := p.peer.FetchX509SVIDs(ctx)
-	if err != nil {
-		logrus.Error(
-			"Failed fetching SVIDs from spire",
-			trustDomain.String(),
-		)
-		return nil, err
-	}
-
-	logrus.Info("Printing svids:")
-	for _, svid := range svids {
-		logrus.Info("svid:", svid.ID.TrustDomain(), svid)
-	}
-
-	x509Src, err := workloadapi.NewX509Source(ctx,
-		workloadapi.WithClientOptions(
-			workloadapi.WithAddr(p.address),
-		),
-	)
-	if err != nil {
-		logrus.Error("Could not get the x509 source", err)
-		return nil, err
-	}
-	logrus.Info("Got x509Src:")
-
-	mtlsConfig := tlsconfig.MTLSClientConfig(
-		x509Src,
-		bundle,
+	tlsConfig := tlsconfig.MTLSClientConfig(
+		p.x509Src,
+		bundleSrc,
 		tlsconfig.AuthorizeMemberOf(trustDomain),
 	)
-	logrus.Info("mtls:", mtlsConfig)
-	return mtlsConfig, nil
+	logrus.Info("Obtained tls config:", tlsConfig)
+	return tlsConfig, nil
 
 }

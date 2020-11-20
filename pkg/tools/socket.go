@@ -176,6 +176,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			b.opts = append(b.opts, OpenTracingDialOptions()...)
 		}
 
+		// TODO:	=  map[cluster]spiffeid.TrustDomain
 		if !b.insecure && GetConfig().SecurityProvider != nil {
 			tlscfg, err := GetConfig().SecurityProvider.GetTLSConfig(ctx)
 			if err != nil {
@@ -220,6 +221,7 @@ func readDialConfig() (DialConfig, error) {
 	}
 
 	if !insecure {
+		// TODO: check the environment for the unix socket address
 		rv.SecurityProvider, err = security.NewSpireProvider(security.SpireAgentUnixAddr)
 		if err != nil {
 			return DialConfig{}, err
