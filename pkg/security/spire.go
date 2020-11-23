@@ -20,8 +20,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -101,13 +99,18 @@ func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 }
 
 func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*tls.Config, error) {
-	// conversion of the id to a string
-	trustDomainStr := fmt.Sprintf("%v", id)
+	var trustDomain spiffeid.TrustDomain
+	var err error
 
-	// creating the spiffeid.TrustDomain struct
-	trustDomain, err := spiffeid.TrustDomainFromString(trustDomainStr)
-	if err != nil {
-		return nil, err
+	if w, ok := id.(string); ok {
+		trustDomain, err = spiffeid.TrustDomainFromString(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if w, ok := id.(spiffeid.TrustDomain); ok {
+		trustDomain = w
 	}
 
 	bundleSrc, err := p.x509Src.GetX509BundleForTrustDomain(trustDomain)
@@ -127,21 +130,25 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 }
 
 func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error) {
-	svids, err := workloadapi.FetchX509SVIDs(ctx)
+	var tlsConfigs []*tls.Config
+
+	bundles, err := workloadapi.FetchX509Bundles(
+		ctx,
+		workloadapi.WithAddr(p.address),
+	)
 	if err != nil {
-		logrus.Error("Failed to fetch SVIDS", err)
+		logrus.Error("Failed to fetch bundles", err)
 		return nil, err
 	}
 
-	var tlsConfigs []*tls.Config
-
-	for _, svid := range svids {
-		id := svid.ID.TrustDomain().String()
+	for _, bundle := range bundles.Bundles() {
+		id := bundle.TrustDomain()
 		tlsConfig, err := p.GetTLSConfigByID(ctx, id)
 		if err != nil {
 			logrus.Errorf("Failed to fetch tlsConfig for Trust Domain: %v", id)
 			return nil, err
 		}
+
 		tlsConfigs = append(tlsConfigs, tlsConfig)
 	}
 

@@ -2,7 +2,7 @@ package tools
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
 	"net"
 	"sync"
 	"time"
@@ -24,7 +24,7 @@ const (
 	InsecureEnv = "INSECURE"
 
 	insecureDefault    = false
-	dialTimeoutDefault = 15 * time.Second
+	dialTimeoutDefault = 30 * time.Second
 )
 
 // DialConfig represents configuration of grpc connection, one per instance
@@ -178,7 +178,6 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 		}
 
 		b.opts = append(b.opts, grpc.WithBlock())
-
 		if b.t != 0 {
 			var cancel context.CancelFunc
 			ctx, cancel = context.WithTimeout(ctx, b.t)
@@ -191,25 +190,52 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 				return nil, err
 			}
 
+			tlsConfigChan := make(chan *tls.Config, 1)
+			defer close(tlsConfigChan)
+
+			// In order to find which is the right tls config used to connect to the target
+			// we are establishing a GRPC connection using a inner context with 15 seconds timout
+			// if the connection is established successfully we've found the right tls config
+			var wg sync.WaitGroup
+			wg.Add(2)
 			for _, tlsConfig := range tlsConfigs {
-				conn, err := grpc.DialContext(
+				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
+					logrus.Infof("Trying to establish connection to target: %v", target)
+					innerContext, cancel := context.WithTimeout(context.TODO(), 15*time.Second)
+					_, err := grpc.DialContext(
+						innerContext,
+						target,
+						append(
+							append(opts, b.opts...),
+							grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+						)...,
+					)
+					if err == nil {
+						tlsConfigChan <- tlsConfig
+					}
+					wg.Done()
+					cancel()
+				}(tlsConfig, &wg)
+			}
+			wg.Wait()
+
+			if len(tlsConfigChan) != 0 {
+				return grpc.DialContext(
 					ctx,
 					target,
 					append(
 						append(opts, b.opts...),
-						grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+						grpc.WithTransportCredentials(credentials.NewTLS(
+							<-tlsConfigChan,
+						)),
 					)...,
 				)
-				if err != nil {
-					logrus.Error(
-						"Failed to establish GRPC connection using tlsConfig: %v",
-						tlsConfig,
-					)
-				} else {
-					return conn, nil
-				}
+			} else {
+				logrus.Errorf(
+					"Could not find tlsConfig to establish a connection with target: %v",
+					target,
+				)
 			}
-			return nil, errors.New("could not establish secure connection")
 		}
 
 		// if connection is insecure or there is no security provider
@@ -239,7 +265,7 @@ func readDialConfig() (DialConfig, error) {
 	if err != nil {
 		return DialConfig{}, err
 	}
-
+	logrus.Info("readDialConfig: Insecure:", insecure)
 	if !insecure {
 		// TODO: check the environment for the unix socket address
 		rv.SecurityProvider, err = security.NewSpireProvider(security.SpireAgentUnixAddr)
