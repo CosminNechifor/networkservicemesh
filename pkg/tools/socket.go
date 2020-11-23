@@ -2,8 +2,7 @@ package tools
 
 import (
 	"context"
-	"crypto/tls"
-	"github.com/cisco-app-networking/networkservicemesh/pkg/retry"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -178,24 +177,6 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			b.opts = append(b.opts, OpenTracingDialOptions()...)
 		}
 
-		if !b.insecure && GetConfig().SecurityProvider != nil {
-
-
-
-			tlscfg, err := GetConfig().SecurityProvider.GetTLSConfig(ctx)
-			if err != nil {
-				return nil, err
-			}
-			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlscfg)))
-
-
-
-
-
-		} else {
-			opts = append(opts, grpc.WithInsecure())
-		}
-
 		b.opts = append(b.opts, grpc.WithBlock())
 
 		if b.t != 0 {
@@ -204,6 +185,36 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			defer cancel()
 		}
 
+		if !b.insecure && GetConfig().SecurityProvider != nil {
+			tlsConfigs, err := GetConfig().SecurityProvider.GetTLSConfigs(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, tlsConfig := range tlsConfigs {
+				conn, err := grpc.DialContext(
+					ctx,
+					target,
+					append(
+						append(opts, b.opts...),
+						grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+					)...,
+				)
+				if err != nil {
+					logrus.Error(
+						"Failed to establish GRPC connection using tlsConfig: %v",
+						tlsConfig,
+					)
+				} else {
+					return conn, nil
+				}
+			}
+			return nil, errors.New("could not establish secure connection")
+		}
+
+		// if connection is insecure or there is no security provider
+		// an insecure connection will be established
+		opts = append(opts, grpc.WithInsecure())
 		return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
 	}
 }
