@@ -24,4 +24,5 @@ import (
 type Provider interface {
 	GetTLSConfig(ctx context.Context) (*tls.Config, error)
 	GetTLSConfigByID(ctx context.Context, id interface{}) (*tls.Config, error)
+	GetTLSConfigs(ctx context.Context) ([]*tls.Config, error)
 }

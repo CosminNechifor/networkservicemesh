@@ -2,6 +2,8 @@ package tools
 
 import (
 	"context"
+	"crypto/tls"
+	"github.com/cisco-app-networking/networkservicemesh/pkg/retry"
 	"net"
 	"sync"
 	"time"
@@ -176,13 +178,20 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			b.opts = append(b.opts, OpenTracingDialOptions()...)
 		}
 
-		// TODO:	=  map[cluster]spiffeid.TrustDomain
 		if !b.insecure && GetConfig().SecurityProvider != nil {
+
+
+
 			tlscfg, err := GetConfig().SecurityProvider.GetTLSConfig(ctx)
 			if err != nil {
 				return nil, err
 			}
 			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlscfg)))
+
+
+
+
+
 		} else {
 			opts = append(opts, grpc.WithInsecure())
 		}

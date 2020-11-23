@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
-	google.golang.org/grpc v1.27.0
+	google.golang.org/grpc v1.27.1
 )
 
 replace (

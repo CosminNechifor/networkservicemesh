@@ -55,7 +55,6 @@ func NewSpireProvider(addr string) (Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	logrus.Info("Obtained x509Src:", x509Src)
 
 	go func() {
 		// returning the workload SVID
@@ -89,7 +88,7 @@ func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 
 	bundle, err := p.x509Src.GetX509BundleForTrustDomain(trustDomain)
 	if err != nil {
-		logrus.Info("Failed getting the bundle with err:", err)
+		logrus.Error("Failed getting the bundle with err:", err)
 	}
 	logrus.Info("Obtained bundle for trust domain:", trustDomain)
 
@@ -110,14 +109,12 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 	if err != nil {
 		return nil, err
 	}
-	logrus.Info("TrustDomain:", trustDomain)
 
 	bundleSrc, err := p.x509Src.GetX509BundleForTrustDomain(trustDomain)
 	if err != nil {
-		logrus.Info("Could not obtain trust domain bundle", err)
+		logrus.Error("Could not obtain trust domain bundle", err)
 		return nil, err
 	}
-	logrus.Info("Obtained bundle for trust domain:", trustDomain)
 
 	tlsConfig := tlsconfig.MTLSClientConfig(
 		p.x509Src,
@@ -127,4 +124,8 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 	logrus.Info("Obtained tls config:", tlsConfig)
 	return tlsConfig, nil
 
+}
+
+func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error) {
+	return nil, nil
 }

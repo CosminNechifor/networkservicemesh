@@ -74,16 +74,6 @@ func UntilSuccess(fn func() error, options ...Option) error {
 	return e
 }
 
-// UntilSuccessOrFail calls UntilSuccess, and fails t with Fatalf if it ends up returning an error
-// TimS -- avoid test.Failer dependency
-//func UntilSuccessOrFail(t test.Failer, fn func() error, options ...Option) {
-//	t.Helper()
-//	err := UntilSuccess(fn, options...)
-//	if err != nil {
-//		t.Fatalf("retry.UntilSuccessOrFail: %v", err)
-//	}
-//}
-
 // Do retries the given function, until there is a timeout, or until the function indicates that it has completed.
 func Do(fn RetriableFunc, options ...Option) (interface{}, error) {
 	cfg := defaultConfig
