@@ -127,5 +127,23 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 }
 
 func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error) {
-	return nil, nil
+	svids, err := workloadapi.FetchX509SVIDs(ctx)
+	if err != nil {
+		logrus.Error("Failed to fetch SVIDS", err)
+		return nil, err
+	}
+
+	var tlsConfigs []*tls.Config
+
+	for _, svid := range svids {
+		id := svid.ID.TrustDomain().String()
+		tlsConfig, err := p.GetTLSConfigByID(ctx, id)
+		if err != nil {
+			logrus.Errorf("Failed to fetch tlsConfig for Trust Domain: %v", id)
+			return nil, err
+		}
+		tlsConfigs = append(tlsConfigs, tlsConfig)
+	}
+
+	return tlsConfigs, nil
 }
