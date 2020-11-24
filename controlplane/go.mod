@@ -3,21 +3,21 @@ module github.com/cisco-app-networking/networkservicemesh/controlplane
 go 1.13
 
 require (
-	github.com/golang/protobuf v1.3.3
+	github.com/golang/protobuf v1.4.2
 	github.com/networkservicemesh/networkservicemesh/controlplane v0.0.0-00010101000000-000000000000
 	github.com/networkservicemesh/networkservicemesh/controlplane/api v0.3.0
 	github.com/networkservicemesh/networkservicemesh/forwarder/api v0.0.0-00010101000000-000000000000
 	github.com/networkservicemesh/networkservicemesh/pkg v0.3.0
 	github.com/networkservicemesh/networkservicemesh/sdk v0.0.0-00010101000000-000000000000
 	github.com/networkservicemesh/networkservicemesh/utils v0.3.0
-	github.com/onsi/gomega v1.7.0
+	github.com/onsi/gomega v1.10.1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.6.0
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
-	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
-	golang.org/x/sys v0.0.0-20200124204421-9fbb57f87de9
+	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
+	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200114203027-fcfc50b29cbb
 	google.golang.org/grpc v1.27.1
 )

@@ -20,6 +20,9 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"os"
+	"strings"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -32,11 +35,32 @@ const (
 
 	// SpireAgentUnixAddr is unix socket address with specified scheme
 	SpireAgentUnixAddr = "unix://" + SpireAgentUnixSocket
+
+	// comma separated list of svids used for authorizing mtls
+	TrustSvids = "TRUST_SVIDS"
 )
 
 type spireProvider struct {
 	address string
 	x509Src *workloadapi.X509Source
+}
+
+func getTrustedSvids() ([]spiffeid.ID, error) {
+	var trustedSvids []spiffeid.ID
+	commaSvids := os.Getenv(TrustSvids)
+	if commaSvids != "" {
+		svidSlice := strings.Split(commaSvids, ",")
+		for _, s := range svidSlice {
+			svid, err := spiffeid.FromString(s)
+			if err != nil {
+				logrus.Error("Failed to parse:", s)
+				return nil, err
+			}
+			logrus.Info("Trusting: ", svid.URL())
+			trustedSvids = append(trustedSvids, svid)
+		}
+	}
+	return trustedSvids, nil
 }
 
 func NewSpireProvider(addr string) (Provider, error) {
@@ -90,10 +114,22 @@ func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	}
 	logrus.Info("Obtained bundle for trust domain:", trustDomain)
 
+	trustedSvids, err := getTrustedSvids()
+	if err != nil {
+		return nil, err
+	}
+
+	var authorizer tlsconfig.Authorizer
+	if trustedSvids != nil && len(trustedSvids) > 0 {
+		authorizer = tlsconfig.AuthorizeOneOf(trustedSvids...)
+	} else {
+		authorizer = tlsconfig.AuthorizeMemberOf(trustDomain)
+	}
+
 	tlsConfig := tlsconfig.MTLSClientConfig(
 		svid,
 		bundle,
-		tlsconfig.AuthorizeMemberOf(trustDomain),
+		authorizer,
 	)
 	return tlsConfig, nil
 }
@@ -119,14 +155,24 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 		return nil, err
 	}
 
+	trustedSvids, err := getTrustedSvids()
+	if err != nil {
+		return nil, err
+	}
+
+	var authorizer tlsconfig.Authorizer
+	if trustedSvids != nil && len(trustedSvids) > 0 {
+		authorizer = tlsconfig.AuthorizeOneOf(trustedSvids...)
+	} else {
+		authorizer = tlsconfig.AuthorizeMemberOf(trustDomain)
+	}
+
 	tlsConfig := tlsconfig.MTLSClientConfig(
 		p.x509Src,
 		bundleSrc,
-		tlsconfig.AuthorizeMemberOf(trustDomain),
+		authorizer,
 	)
-	logrus.Info("Obtained tls config:", tlsConfig)
 	return tlsConfig, nil
-
 }
 
 func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error) {
