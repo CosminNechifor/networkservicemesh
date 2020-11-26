@@ -65,6 +65,7 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 		if err != nil {
 			return nil
 		}
+		logrus.Info("Server will be started in secure mode.")
 		opts = append(opts, grpc.Creds(credentials.NewTLS(tlscfg)))
 		securitySpan.Finish()
 	}
@@ -184,7 +185,9 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			defer cancel()
 		}
 
+		logrus.Info("Cosmin:", b.insecure)
 		if !b.insecure && GetConfig().SecurityProvider != nil {
+			logrus.Info("Gets in the secure if branch")
 			tlsConfigs, err := GetConfig().SecurityProvider.GetTLSConfigs(ctx)
 			if err != nil {
 				return nil, err
@@ -193,11 +196,13 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			tlsConfigChan := make(chan *tls.Config, 1)
 			defer close(tlsConfigChan)
 
+			logrus.Infof("Found %d tlsconfigs.", len(tlsConfigs))
+
 			// In order to find which is the right tls config used to connect to the target
 			// we are establishing a GRPC connection using a inner context with 15 seconds timout
 			// if the connection is established successfully we've found the right tls config
 			var wg sync.WaitGroup
-			wg.Add(2)
+			wg.Add(len(tlsConfigs))
 			for _, tlsConfig := range tlsConfigs {
 				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
 					logrus.Infof("Trying to establish connection to target: %v", target)
@@ -220,6 +225,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			wg.Wait()
 
 			if len(tlsConfigChan) != 0 {
+				logrus.Infof("Establish secure connection to target: %v", target)
 				return grpc.DialContext(
 					ctx,
 					target,
@@ -240,6 +246,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 
 		// if connection is insecure or there is no security provider
 		// an insecure connection will be established
+		logrus.Info("Continue in insecure mode:", b.insecure)
 		opts = append(opts, grpc.WithInsecure())
 		return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
 	}

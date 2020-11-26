@@ -122,8 +122,10 @@ func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	var authorizer tlsconfig.Authorizer
 	if trustedSvids != nil && len(trustedSvids) > 0 {
 		authorizer = tlsconfig.AuthorizeOneOf(trustedSvids...)
+		logrus.Info("Authorizing only:", trustedSvids)
 	} else {
 		authorizer = tlsconfig.AuthorizeMemberOf(trustDomain)
+		logrus.Info("Authorizing any workload part of the trustdomain:", trustDomain)
 	}
 
 	tlsConfig := tlsconfig.MTLSClientConfig(
