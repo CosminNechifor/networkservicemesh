@@ -61,7 +61,7 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 	defer span.Finish()
 	if GetConfig().SecurityProvider != nil {
 		securitySpan := spanhelper.FromContext(span.Context(), "GetCertificate")
-		tlscfg, err := GetConfig().SecurityProvider.GetTLSConfig(ctx)
+		tlscfg, err := GetConfig().SecurityProvider.GetServerTLSConfig(ctx)
 		if err != nil {
 			return nil
 		}
@@ -74,7 +74,7 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 		span.Logger().Infof("GRPC.NewServer with open tracing enabled")
 		opts = append(opts, openTracingOpts()...)
 	}
-
+	logrus.Info("Returning grpc server.")
 	return grpc.NewServer(opts...)
 }
 
@@ -179,11 +179,6 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 		}
 
 		b.opts = append(b.opts, grpc.WithBlock())
-		if b.t != 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, b.t)
-			defer cancel()
-		}
 
 		logrus.Info("Cosmin:", b.insecure)
 		if !b.insecure && GetConfig().SecurityProvider != nil {
@@ -205,8 +200,8 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			wg.Add(len(tlsConfigs))
 			for _, tlsConfig := range tlsConfigs {
 				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
-					logrus.Infof("Trying to establish connection to target: %v", target)
-					innerContext, cancel := context.WithTimeout(context.TODO(), 15*time.Second)
+					logrus.Infof("Trying to establish a secure connection to target: %v", target)
+					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 30*time.Second)
 					_, err := grpc.DialContext(
 						innerContext,
 						target,
@@ -216,10 +211,13 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 						)...,
 					)
 					if err == nil {
+						logrus.Info("Found the right tls certificate:", tlsConfig)
 						tlsConfigChan <- tlsConfig
+					} else {
+						logrus.Error("Could not establish a secure connection:", err)
 					}
 					wg.Done()
-					cancel()
+					cancelInnerContext()
 				}(tlsConfig, &wg)
 			}
 			wg.Wait()
@@ -242,6 +240,12 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 					target,
 				)
 			}
+		}
+
+		if b.t != 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, b.t)
+			defer cancel()
 		}
 
 		// if connection is insecure or there is no security provider

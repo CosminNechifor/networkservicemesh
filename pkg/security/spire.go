@@ -45,7 +45,7 @@ type spireProvider struct {
 	x509Src *workloadapi.X509Source
 }
 
-func getTrustedSvids() ([]spiffeid.ID, error) {
+func getAuthorizer(trustDomain spiffeid.TrustDomain) (tlsconfig.Authorizer, error) {
 	var trustedSvids []spiffeid.ID
 	commaSvids := os.Getenv(TrustSvids)
 	if commaSvids != "" {
@@ -60,27 +60,38 @@ func getTrustedSvids() ([]spiffeid.ID, error) {
 			trustedSvids = append(trustedSvids, svid)
 		}
 	}
-	return trustedSvids, nil
+
+	if len(trustedSvids) > 0 {
+		return tlsconfig.AuthorizeOneOf(trustedSvids...), nil
+	}
+
+	return tlsconfig.AuthorizeMemberOf(trustDomain), nil
 }
 
 func NewSpireProvider(addr string) (Provider, error) {
 	if len(addr) == 0 {
 		addr = SpireAgentUnixAddr
 	}
-	ctx := context.Background()
+	logrus.Info("Trying to establish connection with the spire provider at address:", addr)
+	ctx := context.TODO()
+	logrus.Info("Created the todo context:", addr)
 	x509Src, err := workloadapi.NewX509Source(
 		ctx,
 		workloadapi.WithClientOptions(
 			workloadapi.WithAddr(addr),
+			workloadapi.WithLogger(logrus.New()),
 		),
 	)
+	logrus.Info("Got x509:", x509Src, err)
 	if err != nil {
 		return nil, err
 	}
-
+	logrus.Info("Started goroutine")
 	go func() {
 		// returning the workload SVID
+		logrus.Info("Get SVID:")
 		svid, err := x509Src.GetX509SVID()
+		logrus.Info("Got SVID:")
 		if err != nil {
 			logrus.Error("Failed getting the SVID with error:", err)
 		}
@@ -89,6 +100,7 @@ func NewSpireProvider(addr string) (Provider, error) {
 		}
 	}()
 
+	logrus.Info("Returning provider")
 	return &spireProvider{
 		address: addr,
 		x509Src: x509Src,
@@ -114,21 +126,44 @@ func (p *spireProvider) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	}
 	logrus.Info("Obtained bundle for trust domain:", trustDomain)
 
-	trustedSvids, err := getTrustedSvids()
+	authorizer, err := getAuthorizer(trustDomain)
 	if err != nil {
 		return nil, err
 	}
 
-	var authorizer tlsconfig.Authorizer
-	if trustedSvids != nil && len(trustedSvids) > 0 {
-		authorizer = tlsconfig.AuthorizeOneOf(trustedSvids...)
-		logrus.Info("Authorizing only:", trustedSvids)
-	} else {
-		authorizer = tlsconfig.AuthorizeMemberOf(trustDomain)
-		logrus.Info("Authorizing any workload part of the trustdomain:", trustDomain)
+	tlsConfig := tlsconfig.MTLSClientConfig(
+		svid,
+		bundle,
+		authorizer,
+	)
+	return tlsConfig, nil
+}
+
+func (p *spireProvider) GetServerTLSConfig(ctx context.Context) (*tls.Config, error) {
+	svid, err := p.x509Src.GetX509SVID()
+	if err != nil || svid == nil {
+		logrus.Errorf(
+			"Error:%v SVID: %v",
+			err,
+			svid,
+		)
+		return nil, errors.New("failed getting the SVID")
 	}
 
-	tlsConfig := tlsconfig.MTLSClientConfig(
+	trustDomain := svid.ID.TrustDomain()
+
+	bundle, err := p.x509Src.GetX509BundleForTrustDomain(trustDomain)
+	if err != nil {
+		logrus.Error("Failed getting the bundle with err:", err)
+	}
+	logrus.Info("Obtained bundle for trust domain:", trustDomain)
+
+	authorizer, err := getAuthorizer(trustDomain)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := tlsconfig.MTLSServerConfig(
 		svid,
 		bundle,
 		authorizer,
@@ -157,16 +192,9 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 		return nil, err
 	}
 
-	trustedSvids, err := getTrustedSvids()
+	authorizer, err := getAuthorizer(trustDomain)
 	if err != nil {
 		return nil, err
-	}
-
-	var authorizer tlsconfig.Authorizer
-	if trustedSvids != nil && len(trustedSvids) > 0 {
-		authorizer = tlsconfig.AuthorizeOneOf(trustedSvids...)
-	} else {
-		authorizer = tlsconfig.AuthorizeMemberOf(trustDomain)
 	}
 
 	tlsConfig := tlsconfig.MTLSClientConfig(

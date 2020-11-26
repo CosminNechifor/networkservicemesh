@@ -185,8 +185,9 @@ func (impl *nsmdServiceRegistry) initRegistryClient(ctx context.Context) {
 			continue
 		}
 		span.Logger().Println("Registry port now available, attempting to connect...")
-
+		logrus.Info("[cosmin]: ----------trying to create the tcp connection over grpc")
 		conn, err := tools.DialContextTCP(span.Context(), impl.registryAddress)
+		logrus.Info("[cosmin]: ----------trying to create the tcp connection over grpc")
 		if err != nil {
 			span.Logger().Errorf("Failed to dial Network Service Registry at %s: %s", impl.registryAddress, err)
 			continue

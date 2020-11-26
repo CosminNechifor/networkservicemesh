@@ -138,6 +138,7 @@ func WaitForPortAvailable(ctx context.Context, protoType, registryAddress string
 				_ = conn.Close()
 			}
 			if err == nil {
+				logrus.Infof("Liveness probe was successful: %s:%s", protoType, registryAddress)
 				return nil
 			}
 			if time.Since(last) > time.Minute {
