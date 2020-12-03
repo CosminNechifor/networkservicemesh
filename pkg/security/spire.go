@@ -79,7 +79,6 @@ func NewSpireProvider(addr string) (Provider, error) {
 		ctx,
 		workloadapi.WithClientOptions(
 			workloadapi.WithAddr(addr),
-			workloadapi.WithLogger(logrus.New()),
 		),
 	)
 	logrus.Info("Got x509:", x509Src, err)
