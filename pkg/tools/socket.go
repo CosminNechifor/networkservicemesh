@@ -223,7 +223,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			wg.Wait()
 
 			if len(tlsConfigChan) != 0 {
-				logrus.Infof("Establish secure connection to target: %v", target)
+				logrus.Infof("Establishing secure connection to target: %v", target)
 				return grpc.DialContext(
 					ctx,
 					target,
