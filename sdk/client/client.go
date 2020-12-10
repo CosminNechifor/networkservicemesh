@@ -19,7 +19,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"time"
+	"unsafe"
 
 	"github.com/pkg/errors"
 
@@ -34,14 +36,14 @@ import (
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connectioncontext"
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/networkservice"
+	ctrl_common "github.com/networkservicemesh/networkservicemesh/controlplane/pkg/common"
 	"github.com/networkservicemesh/networkservicemesh/pkg/tools"
 	"github.com/networkservicemesh/networkservicemesh/sdk/common"
-	ctrl_common "github.com/networkservicemesh/networkservicemesh/controlplane/pkg/common"
 )
 
 const (
 	// ConnectTimeout - a default connection timeout
-	ConnectTimeout = 15 * time.Second
+	ConnectTimeout = 120 * time.Second
 	// ConnectionRetry - A number of retries for establish a network service, default == 10
 	ConnectionRetry = 10
 	// RequestDelay - A delay between attempts, default = 5sec
@@ -58,9 +60,36 @@ type NsmClient struct {
 	tracerCloser         io.Closer
 }
 
+func printContextInternals(ctx interface{}, inner bool) {
+	contextValues := reflect.ValueOf(ctx).Elem()
+	contextKeys := reflect.TypeOf(ctx).Elem()
+
+	if !inner {
+		fmt.Printf("\nFields for %s.%s\n", contextKeys.PkgPath(), contextKeys.Name())
+	}
+
+	if contextKeys.Kind() == reflect.Struct {
+		for i := 0; i < contextValues.NumField(); i++ {
+			reflectValue := contextValues.Field(i)
+			reflectValue = reflect.NewAt(reflectValue.Type(), unsafe.Pointer(reflectValue.UnsafeAddr())).Elem()
+
+			reflectField := contextKeys.Field(i)
+
+			if reflectField.Name == "Context" {
+				printContextInternals(reflectValue.Interface(), true)
+			} else {
+				fmt.Printf("field name: %+v\n", reflectField.Name)
+				fmt.Printf("value: %+v\n", reflectValue.Interface())
+			}
+		}
+	} else {
+		fmt.Printf("context is empty (int)\n")
+	}
+}
+
 // Connect with no retry and delay
 func (nsmc *NsmClient) Connect(ctx context.Context, name, mechanism, description string) (*connection.Connection, error) {
-	return nsmc.ConnectRetry(ctx, name, mechanism, description,1, 0)
+	return nsmc.ConnectRetry(ctx, name, mechanism, description, 1, 0)
 }
 
 func (nsmc *NsmClient) ConnectRetry(ctx context.Context, name, mechanism, description string, retryCount int, retryDelay time.Duration) (*connection.Connection, error) {
@@ -76,12 +105,12 @@ func (nsmc *NsmClient) ConnectToEndpointRetry(ctx context.Context, remoteIp, des
 	span := spanhelper.FromContext(ctx, "nsmClient.Connect")
 	defer span.Finish()
 	span.Logger().WithFields(logrus.Fields{
-		"destEndpointName": destEndpointName,
+		"destEndpointName":    destEndpointName,
 		"destEndpointManager": destEndpointManager,
-		"remoteIp": remoteIp,
-		"mechanismName": name,
-		"mechanism": mechanism,
-		"description": description,
+		"remoteIp":            remoteIp,
+		"mechanismName":       name,
+		"mechanism":           mechanism,
+		"description":         description,
 	}).Infof("Initiating an outgoing connection.")
 	span.Logger().Infof("Initiating an outgoing connection.")
 	nsmc.Lock()
@@ -140,12 +169,26 @@ func (nsmc *NsmClient) ConnectToEndpointRetry(ctx context.Context, remoteIp, des
 		var attemptSpan = spanhelper.FromContext(span.Context(), fmt.Sprintf("nsmClient.Connect.attempt:%v", maxRetry-retryCount))
 		defer attemptSpan.Finish()
 
-		attempCtx, cancelProc := context.WithTimeout(attemptSpan.Context(), ConnectTimeout)
+		attemptContext, cancelProc := context.WithTimeout(attemptSpan.Context(), ConnectTimeout)
 		defer cancelProc()
 
 		attemptLogger := attemptSpan.Logger()
 		attemptLogger.Infof("Requesting %v", outgoingRequest)
-		outgoingConnection, err = nsmc.NsClient.Request(attempCtx, outgoingRequest)
+
+		workingContext := context.Background()
+		logrus.Info("----------------------------------------------------")
+		logrus.Info("Working context:")
+		printContextInternals(workingContext, true)
+		logrus.Info("----------------------------------------------------")
+		logrus.Info("")
+		logrus.Info("")
+		logrus.Info("")
+		logrus.Info("----------------------------------------------------")
+		logrus.Info("Attempt context:")
+		printContextInternals(attemptContext, true)
+		logrus.Info("----------------------------------------------------")
+
+		outgoingConnection, err = nsmc.NsClient.Request(attemptContext, outgoingRequest)
 
 		if err != nil {
 			attemptSpan.LogError(err)
@@ -164,12 +207,12 @@ func (nsmc *NsmClient) ConnectToEndpointRetry(ctx context.Context, remoteIp, des
 		break
 	}
 	span.Logger().WithFields(logrus.Fields{
-		"destEndpointName": destEndpointName,
+		"destEndpointName":    destEndpointName,
 		"destEndpointManager": destEndpointManager,
-		"remoteIp": remoteIp,
-		"mechanismName": name,
-		"mechanism": mechanism,
-		"description": description,
+		"remoteIp":            remoteIp,
+		"mechanismName":       name,
+		"mechanism":           mechanism,
+		"description":         description,
 	}).Infof("Successfully requested connection")
 	span.LogObject("connection", outgoingConnection)
 
@@ -187,6 +230,7 @@ func (nsmc *NsmClient) Close(ctx context.Context, outgoingConnection *connection
 	span.LogObject("connection", outgoingConnection)
 
 	_, err := nsmc.NsClient.Close(span.Context(), outgoingConnection)
+	//_, err := nsmc.NsClient.Close(context.Background(), outgoingConnection)
 
 	span.LogError(err)
 

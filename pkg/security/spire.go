@@ -218,6 +218,7 @@ func (p *spireProvider) GetTLSConfigByID(ctx context.Context, id interface{}) (*
 func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error) {
 	var tlsConfigs []*tls.Config
 
+	logrus.Info("Connecting to the workload api at:", p.address)
 	bundles, err := workloadapi.FetchX509Bundles(
 		ctx,
 		workloadapi.WithAddr(p.address),
@@ -226,6 +227,7 @@ func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error
 		logrus.Error("Failed to fetch bundles", err)
 		return nil, err
 	}
+	logrus.Info("Successfully retrieve bundles:", bundles)
 
 	for _, bundle := range bundles.Bundles() {
 		id := bundle.TrustDomain()

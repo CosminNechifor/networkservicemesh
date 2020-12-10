@@ -200,8 +200,10 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			wg.Add(len(tlsConfigs))
 			for _, tlsConfig := range tlsConfigs {
 				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
+					defer wg.Done()
 					logrus.Infof("Trying to establish a secure connection to target: %v", target)
 					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 30*time.Second)
+					defer cancelInnerContext()
 					_, err := grpc.DialContext(
 						innerContext,
 						target,
@@ -213,11 +215,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 					if err == nil {
 						logrus.Info("Found the right tls certificate:", tlsConfig)
 						tlsConfigChan <- tlsConfig
-					} else {
-						logrus.Error("Could not establish a secure connection:", err)
 					}
-					wg.Done()
-					cancelInnerContext()
 				}(tlsConfig, &wg)
 			}
 			wg.Wait()

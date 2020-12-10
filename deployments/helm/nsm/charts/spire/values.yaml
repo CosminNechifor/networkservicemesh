@@ -13,3 +13,5 @@ azure: false
 namespace: spire
 selfSignedCA: false
 trustDomain: central.com
+
+
