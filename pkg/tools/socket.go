@@ -59,7 +59,9 @@ func InitConfig(c DialConfig) {
 func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 	span := spanhelper.FromContext(ctx, "NewServer")
 	defer span.Finish()
+
 	if GetConfig().SecurityProvider != nil {
+		logrus.Info("Secure branch in NewServer")
 		securitySpan := spanhelper.FromContext(span.Context(), "GetCertificate")
 		tlscfg, err := GetConfig().SecurityProvider.GetServerTLSConfig(ctx)
 		if err != nil {

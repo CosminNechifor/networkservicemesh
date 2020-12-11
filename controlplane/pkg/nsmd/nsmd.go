@@ -453,6 +453,8 @@ func StartNSMServer(ctx context.Context, model model.Model, manager nsm.NetworkS
 
 	span.Logger().Infof("Starting NSM server")
 
+
+	logrus.Info("NSMD server is created here:")
 	nsm.registerServer = tools.NewServer(span.Context())
 	nsmdapi.RegisterNSMDServer(nsm.registerServer, nsm)
 

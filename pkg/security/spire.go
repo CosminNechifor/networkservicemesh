@@ -20,9 +20,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"os"
-	"strings"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -38,6 +35,9 @@ const (
 
 	// comma separated list of svids used for authorizing mtls
 	TrustSvids = "TRUST_SVIDS"
+
+	// TODO: temporary change to allow a GRPC allow any connection
+	TrustAny = "TRUST_ANY"
 )
 
 type spireProvider struct {
@@ -46,31 +46,40 @@ type spireProvider struct {
 }
 
 func getAuthorizer(defaultTrustDomain spiffeid.TrustDomain) (tlsconfig.Authorizer, error) {
-	var trustedSvids []spiffeid.ID
-	commaSvids := os.Getenv(TrustSvids)
-	if commaSvids != "" {
-		svidSlice := strings.Split(commaSvids, ",")
-		for _, s := range svidSlice {
-			svid, err := spiffeid.FromString(s)
-			if err != nil {
-				logrus.Error("Failed to parse:", s)
-				return nil, err
-			}
-			logrus.Info("Trusting: ", svid.URL())
-			trustedSvids = append(trustedSvids, svid)
-		}
-	}
+	logrus.Info("defaultTrustDomain:", defaultTrustDomain)
+	logrus.Info("AUTHORIZING ALL CLIENTS")
+	return tlsconfig.AuthorizeAny(), nil
+	//var trustedSvids []spiffeid.ID
+	//
+	//if trustAny, err := strconv.ParseBool(os.Getenv(TrustAny)); err != nil && trustAny {
+	//	logrus.Info("Authorizing ANY clinet with a valid SVID")
+	//	return tlsconfig.AuthorizeAny(), nil
+	//}
 
-	if len(trustedSvids) > 0 {
-		logrus.Info("Authorizing the following SVIDS:", trustedSvids)
-		return tlsconfig.AuthorizeOneOf(trustedSvids...), nil
-	}
-
-	logrus.Info(
-		"Authorizing any connection with a valid SVID part of trustDomain:",
-		defaultTrustDomain,
-	)
-	return tlsconfig.AuthorizeMemberOf(defaultTrustDomain), nil
+	//commaSvids := os.Getenv(TrustSvids)
+	//if commaSvids != "" {
+	//	svidSlice := strings.Split(commaSvids, ",")
+	//	for _, s := range svidSlice {
+	//		svid, err := spiffeid.FromString(s)
+	//		if err != nil {
+	//			logrus.Error("Failed to parse:", s)
+	//			return nil, err
+	//		}
+	//		logrus.Info("Trusting: ", svid.URL())
+	//		trustedSvids = append(trustedSvids, svid)
+	//	}
+	//}
+	//
+	//if len(trustedSvids) > 0 {
+	//	logrus.Info("Authorizing the following SVIDS:", trustedSvids)
+	//	return tlsconfig.AuthorizeOneOf(trustedSvids...), nil
+	//}
+	//
+	//logrus.Info(
+	//	"Authorizing any client with a valid SVID part of trustDomain:",
+	//	defaultTrustDomain,
+	//)
+	//return tlsconfig.AuthorizeMemberOf(defaultTrustDomain), nil
 }
 
 func NewSpireProvider(addr string) (Provider, error) {
