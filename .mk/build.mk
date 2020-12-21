@@ -23,7 +23,7 @@ VPP_AGENT=ligato/vpp-agent:v3.2.0
 CGO_ENABLED=0
 GOOS=linux
 DOCKER=./build
-GO_BUILD_ENV = CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) 
+GO_BUILD_ENV = CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS)
 GO_BUILD = ${GO_BUILD_ENV} go build -ldflags "-extldflags '-static' -X  main.version=$(VERSION)"
 
 print:

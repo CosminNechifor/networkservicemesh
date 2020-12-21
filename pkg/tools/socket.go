@@ -176,6 +176,7 @@ func (b *dialBuilder) Timeout(t time.Duration) *dialBuilder {
 
 func (b *dialBuilder) DialContextFunc() dialContextFunc {
 	return func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		logrus.Infof("Trying to establish connection to target: %v", target)
 		if GetConfig().OpenTracing {
 			b.opts = append(b.opts, OpenTracingDialOptions()...)
 		}

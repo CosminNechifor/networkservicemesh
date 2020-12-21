@@ -95,17 +95,22 @@ func main() {
 	// Choose a public API listener
 
 	nsmdAPIAddress := getNsmdAPIAddress()
+	logrus.Info("cosmin: nsmdApiAddress: ", nsmdAPIAddress)
 	span.LogObject("api-address", nsmdAPIAddress)
 	sock, err := apiRegistry.NewPublicListener(nsmdAPIAddress)
 	if err != nil {
 		span.LogError(errors.Wrap(err, "failed to start Public API server: %+v"))
 		return
 	}
+	logrus.Info("cosmin: public listener socket was created:")
 	span.Logger().Info("Public listener is ready")
 	nsmdGoals.SetPublicListenerReady()
+	logrus.Info("cosmin: public listener socket was created and is ready now")
 
 	server.StartAPIServerAt(span.Context(), sock, nsmdProbes)
+	logrus.Info("cosmin: server.StartAPIServerAt(span.Context(), sock, nsmdProbes) executed")
 	nsmdGoals.SetServerAPIReady()
+	logrus.Info("cosmin: nsmdGoals.SetServerAPIReady(), sock, nsmdProbes) executed")
 	span.Logger().Info("Serve api is ready")
 
 	span.LogValue("start-time", fmt.Sprintf("%v", time.Since(start)))

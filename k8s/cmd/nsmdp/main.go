@@ -32,7 +32,7 @@ import (
 var version string
 
 func main() {
-	logrus.Info("Starting nsmdp-k8s...")
+	logrus.Info("Starting nsmdp-k8s (wcm-nsmgr)...")
 	logrus.Infof("Version %v", version)
 	utils.PrintAllEnv(logrus.StandardLogger())
 	// Capture signals to cleanup before exiting
