@@ -67,7 +67,6 @@ func (impl *nsmdServiceRegistry) NewWorkspaceProvider() serviceregistry.Workspac
 	return NewDefaultWorkspaceProvider()
 }
 
-// TODO: understand this!
 func (impl *nsmdServiceRegistry) RemoteNetworkServiceClient(ctx context.Context, nsm *registry.NetworkServiceManager) (networkservice.NetworkServiceClient, *grpc.ClientConn, error) {
 	err := tools.WaitForPortAvailable(ctx, "tcp", nsm.GetUrl(), 100*time.Millisecond)
 	if err != nil {

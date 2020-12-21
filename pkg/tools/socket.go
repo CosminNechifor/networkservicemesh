@@ -24,7 +24,7 @@ const (
 	InsecureEnv = "INSECURE"
 
 	insecureDefault    = false
-	dialTimeoutDefault = 30 * time.Second
+	dialTimeoutDefault = 15 * time.Second
 )
 
 // DialConfig represents configuration of grpc connection, one per instance
@@ -59,6 +59,7 @@ func InitConfig(c DialConfig) {
 func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 	span := spanhelper.FromContext(ctx, "NewServer")
 	defer span.Finish()
+
 
 	if GetConfig().SecurityProvider != nil {
 		logrus.Info("Secure branch in NewServer")

@@ -18,12 +18,9 @@ package client
 import (
 	"context"
 	"fmt"
-	"io"
-	"reflect"
-	"time"
-	"unsafe"
-
 	"github.com/pkg/errors"
+	"io"
+	"time"
 
 	"github.com/networkservicemesh/networkservicemesh/controlplane/api/connection/mechanisms/cls"
 
@@ -58,33 +55,6 @@ type NsmClient struct {
 	OutgoingConnections  []*connection.Connection
 	NscInterfaceName     string
 	tracerCloser         io.Closer
-}
-
-func printContextInternals(ctx interface{}, inner bool) {
-	contextValues := reflect.ValueOf(ctx).Elem()
-	contextKeys := reflect.TypeOf(ctx).Elem()
-
-	if !inner {
-		fmt.Printf("\nFields for %s.%s\n", contextKeys.PkgPath(), contextKeys.Name())
-	}
-
-	if contextKeys.Kind() == reflect.Struct {
-		for i := 0; i < contextValues.NumField(); i++ {
-			reflectValue := contextValues.Field(i)
-			reflectValue = reflect.NewAt(reflectValue.Type(), unsafe.Pointer(reflectValue.UnsafeAddr())).Elem()
-
-			reflectField := contextKeys.Field(i)
-
-			if reflectField.Name == "Context" {
-				printContextInternals(reflectValue.Interface(), true)
-			} else {
-				fmt.Printf("field name: %+v\n", reflectField.Name)
-				fmt.Printf("value: %+v\n", reflectValue.Interface())
-			}
-		}
-	} else {
-		fmt.Printf("context is empty (int)\n")
-	}
 }
 
 // Connect with no retry and delay
@@ -169,26 +139,12 @@ func (nsmc *NsmClient) ConnectToEndpointRetry(ctx context.Context, remoteIp, des
 		var attemptSpan = spanhelper.FromContext(span.Context(), fmt.Sprintf("nsmClient.Connect.attempt:%v", maxRetry-retryCount))
 		defer attemptSpan.Finish()
 
-		attemptContext, cancelProc := context.WithTimeout(attemptSpan.Context(), ConnectTimeout)
+		attempCtx, cancelProc := context.WithTimeout(attemptSpan.Context(), ConnectTimeout)
 		defer cancelProc()
 
 		attemptLogger := attemptSpan.Logger()
 		attemptLogger.Infof("Requesting %v", outgoingRequest)
-
-		workingContext := context.Background()
-		logrus.Info("----------------------------------------------------")
-		logrus.Info("Working context:")
-		printContextInternals(workingContext, true)
-		logrus.Info("----------------------------------------------------")
-		logrus.Info("")
-		logrus.Info("")
-		logrus.Info("")
-		logrus.Info("----------------------------------------------------")
-		logrus.Info("Attempt context:")
-		printContextInternals(attemptContext, true)
-		logrus.Info("----------------------------------------------------")
-
-		outgoingConnection, err = nsmc.NsClient.Request(attemptContext, outgoingRequest)
+		outgoingConnection, err = nsmc.NsClient.Request(attempCtx, outgoingRequest)
 
 		if err != nil {
 			attemptSpan.LogError(err)
@@ -230,7 +186,6 @@ func (nsmc *NsmClient) Close(ctx context.Context, outgoingConnection *connection
 	span.LogObject("connection", outgoingConnection)
 
 	_, err := nsmc.NsClient.Close(span.Context(), outgoingConnection)
-	//_, err := nsmc.NsClient.Close(context.Background(), outgoingConnection)
 
 	span.LogError(err)
 
