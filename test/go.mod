@@ -25,7 +25,7 @@ require (
 	github.com/spf13/viper v1.5.0
 	github.com/spiffe/go-spiffe v0.0.0-20191104192205-d29ac0a1ba99
 	go.ligato.io/vpp-agent/v3 v3.2.0
-	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc v1.33.2
 	k8s.io/api v0.18.1
 	k8s.io/apimachinery v0.18.1
 	k8s.io/client-go v11.0.0+incompatible

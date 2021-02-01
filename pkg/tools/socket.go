@@ -60,7 +60,6 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 	span := spanhelper.FromContext(ctx, "NewServer")
 	defer span.Finish()
 
-
 	if GetConfig().SecurityProvider != nil {
 		logrus.Info("Secure branch in NewServer")
 		securitySpan := spanhelper.FromContext(span.Context(), "GetCertificate")
@@ -68,8 +67,9 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 		if err != nil {
 			return nil
 		}
-		logrus.Info("Server will be started in secure mode.")
+		logrus.Info("Server will be started in secure mode: ", tlscfg)
 		opts = append(opts, grpc.Creds(credentials.NewTLS(tlscfg)))
+		logrus.Info("Opts:", opts)
 		securitySpan.Finish()
 	}
 
@@ -184,7 +184,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 
 		b.opts = append(b.opts, grpc.WithBlock())
 
-		logrus.Info("Cosmin:", b.insecure)
+		logrus.Info("Insecure:", b.insecure)
 		if !b.insecure && GetConfig().SecurityProvider != nil {
 			logrus.Info("Gets in the secure if branch")
 			tlsConfigs, err := GetConfig().SecurityProvider.GetTLSConfigs(ctx)
@@ -225,17 +225,23 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			wg.Wait()
 
 			if len(tlsConfigChan) != 0 {
-				logrus.Infof("Establishing secure connection to target: %v", target)
-				return grpc.DialContext(
+				tlsConfig := <-tlsConfigChan
+				logrus.Infof("Establishing secure connection to target: %v using tlsConfig: %v", target, tlsConfig)
+				conn, err := grpc.DialContext(
 					ctx,
 					target,
 					append(
 						append(opts, b.opts...),
 						grpc.WithTransportCredentials(credentials.NewTLS(
-							<-tlsConfigChan,
+							tlsConfig,
 						)),
 					)...,
 				)
+				if err != nil {
+					logrus.Info("Error occurred while trying to establish connection to: %v. Error: %v", target, err.Error())
+					logrus.Info("Continue in insecure mode:", b.insecure)
+				}
+				return conn, nil
 			} else {
 				logrus.Errorf(
 					"Could not find tlsConfig to establish a connection with target: %v",

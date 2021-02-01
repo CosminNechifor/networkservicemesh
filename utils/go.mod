@@ -2,6 +2,12 @@ module github.com/cisco-app-networking/networkservicemesh/utils
 
 go 1.13
 
+replace (
+	github.com/networkservicemesh/networkservicemesh/controlplane/api => ../controlplane/api
+	github.com/networkservicemesh/networkservicemesh/pkg => ../pkg
+	github.com/networkservicemesh/networkservicemesh/utils => ./
+)
+
 require (
 	github.com/caddyserver/caddy v1.0.5
 	github.com/networkservicemesh/networkservicemesh/controlplane/api v0.3.0
@@ -14,8 +20,3 @@ require (
 
 replace github.com/census-instrumentation/opencensus-proto v0.1.0-0.20181214143942-ba49f56771b8 => github.com/census-instrumentation/opencensus-proto v0.0.3-0.20181214143942-ba49f56771b8
 
-replace (
-	github.com/networkservicemesh/networkservicemesh/controlplane/api => ../controlplane/api
-	github.com/networkservicemesh/networkservicemesh/pkg => ../pkg
-	github.com/networkservicemesh/networkservicemesh/utils => ./
-)

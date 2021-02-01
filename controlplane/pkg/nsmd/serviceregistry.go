@@ -32,7 +32,7 @@ const (
 	ServerSock = "/var/lib/networkservicemesh/nsm.io.sock"
 	// NsmDevicePluginEnv is the name of the env variable to configure enabled device plugin name
 	NsmDevicePluginEnv     = "NSM_DEVICE_PLUGIN"
-	registryConnectTimeout = time.Second * 30
+	registryConnectTimeout = time.Second * 100
 )
 
 type apiRegistry struct {
