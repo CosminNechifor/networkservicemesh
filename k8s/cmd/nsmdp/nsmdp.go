@@ -207,7 +207,8 @@ func startDeviceServer(ctx context.Context, nsm pluginapi.DevicePluginServer) er
 		return err
 	}
 
-	grpcServer := tools.NewServerInsecure()
+	logrus.Info("nsmdp.go: Starting nsmdp server in insecure mode")
+	grpcServer := tools.NewServer(ctx)
 
 	pluginapi.RegisterDevicePluginServer(grpcServer, nsm)
 
@@ -220,7 +221,7 @@ func startDeviceServer(ctx context.Context, nsm pluginapi.DevicePluginServer) er
 	}()
 	span.Logger().Infof("Check device server operational")
 	// Check if the socket of device plugin server is operation
-	conn, err := tools.DialUnixInsecure(listenEndpoint)
+	conn, err := tools.DialUnix(listenEndpoint)
 	if err != nil {
 		span.LogError(err)
 		return err

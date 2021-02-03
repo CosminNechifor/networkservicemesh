@@ -34,7 +34,8 @@ func (m *MetricsCollector) CollectAsync(monitor metrics.MetricsMonitor, endpoint
 
 func (m *MetricsCollector) collect(monitor metrics.MetricsMonitor, endpoint string) {
 	// TODO: Cosmin: maybe the collector is the one who causes the problem
-	conn, err := tools.DialTCPInsecure(endpoint)
+	// Cosmin: Added secure connection here
+	conn, err := tools.DialTCP(endpoint)
 
 	if err != nil {
 		logrus.Errorf("Metrics collector: can't dial %v", err)
