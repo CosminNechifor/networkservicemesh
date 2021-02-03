@@ -198,15 +198,16 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			logrus.Infof("Found %d tlsconfigs.", len(tlsConfigs))
 
 			// In order to find which is the right tls config used to connect to the target
-			// we are establishing a GRPC connection using a inner context with 15 seconds timout
-			// if the connection is established successfully we've found the right tls config
+			// we try to establish a GRPC connection using each tlsConfig and a inner context
+			// with 15 seconds timout. If the connection is established successfully the right tls config
+			// has been found.
 			var wg sync.WaitGroup
 			wg.Add(len(tlsConfigs))
 			for _, tlsConfig := range tlsConfigs {
 				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
 					defer wg.Done()
 					logrus.Infof("Trying to establish a secure connection to target: %v", target)
-					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 30*time.Second)
+					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 15*time.Second)
 					defer cancelInnerContext()
 					_, err := grpc.DialContext(
 						innerContext,

@@ -31,13 +31,13 @@ data:
         }
         federates_with "member1.com" {
             bundle_endpoint {
-                address = "172.17.254.1"
+                address = "172.23.254.1"
                 port = 8443
             }
         }
         federates_with "member2.com" {
             bundle_endpoint {
-                address = "172.17.253.1"
+                address = "172.23.253.1"
                 port = 8443
             }
         }

@@ -198,7 +198,7 @@ func createForwarderConfig(ctx context.Context, forwarderGoals *ForwarderProbeGo
 	return cfg
 }
 
-// COSMIN: Here is where the forwarder is being created
+// TODO: COSMIN: Here is where the forwarder is being created
 // CreateForwarder creates new Forwarder Registrar client
 func CreateForwarder(ctx context.Context, dp NSMForwarder, forwarderGoals *ForwarderProbeGoals) *ForwarderRegistration {
 	span := spanhelper.FromContext(ctx, "CreateForwarder")

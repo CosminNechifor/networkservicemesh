@@ -33,6 +33,7 @@ func (m *MetricsCollector) CollectAsync(monitor metrics.MetricsMonitor, endpoint
 }
 
 func (m *MetricsCollector) collect(monitor metrics.MetricsMonitor, endpoint string) {
+	// TODO: Cosmin: maybe the collector is the one who causes the problem
 	conn, err := tools.DialTCPInsecure(endpoint)
 
 	if err != nil {

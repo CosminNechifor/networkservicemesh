@@ -84,12 +84,16 @@ func getProxyNSMDAPIAddress() string {
 // StartAPIServerAt starts GRPC API server at sock
 func startAPIServerAt(sock net.Listener, serviceRegistry serviceregistry.ServiceRegistry, probes probes.Probes) {
 	grpcServer := tools.NewServer(context.Background())
+
 	remoteConnectionMonitor := remote.NewProxyMonitorServer()
 	connection.RegisterMonitorConnectionServer(grpcServer, remoteConnectionMonitor)
 	probes.Append(health.NewGrpcHealth(grpcServer, sock.Addr(), time.Minute))
 	// Register Remote NetworkServiceManager
+	logrus.Info("Creating remote.NetworkServiceServer")
 	remoteServer := proxynetworkserviceserver.NewProxyNetworkServiceServer(serviceRegistry)
+	logrus.Info("Register NetworkServiceServer")
 	unified.RegisterNetworkServiceServer(grpcServer, remoteServer)
+	logrus.Info("Registered NetworkServiceServer")
 
 	go func() {
 		if err := grpcServer.Serve(sock); err != nil {
