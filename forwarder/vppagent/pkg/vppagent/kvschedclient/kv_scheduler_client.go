@@ -36,7 +36,6 @@ type KVSchedulerClient struct {
 	httpClient          http.Client
 	kvSchedulerEndpoint string
 }
-
 // NewKVSchedulerClient - Creates a new client for KVScheduler. Can return an error if vppAgentEndpoint has an incorrect format.
 func NewKVSchedulerClient(vppAgentEndpoint string) (*KVSchedulerClient, error) {
 	kvSchedulerEndpoint, err := buildKvSchedulerDownStreamPath(vppAgentEndpoint)

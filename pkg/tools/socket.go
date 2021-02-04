@@ -65,6 +65,7 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 		securitySpan := spanhelper.FromContext(span.Context(), "GetCertificate")
 		tlscfg, err := GetConfig().SecurityProvider.GetServerTLSConfig(ctx)
 		if err != nil {
+			logrus.Error("Failed to retrieve server tls config.")
 			return nil
 		}
 		logrus.Info("Server will be started in secure mode: ", tlscfg)

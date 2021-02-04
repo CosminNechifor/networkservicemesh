@@ -207,8 +207,7 @@ func startDeviceServer(ctx context.Context, nsm pluginapi.DevicePluginServer) er
 		return err
 	}
 
-	logrus.Info("nsmdp.go: Starting nsmdp server in insecure mode")
-	grpcServer := tools.NewServer(ctx)
+	grpcServer := tools.NewServerInsecure()
 
 	pluginapi.RegisterDevicePluginServer(grpcServer, nsm)
 
