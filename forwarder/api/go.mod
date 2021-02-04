@@ -13,6 +13,6 @@ replace (
 require (
 	github.com/golang/protobuf v1.3.2
 	github.com/networkservicemesh/networkservicemesh/controlplane/api v0.0.0-00010101000000-000000000000
-	google.golang.org/grpc v1.27.0
+	google.golang.org/grpc v1.33.3
 )
 

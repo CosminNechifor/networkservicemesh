@@ -29,5 +29,5 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2 // indirect
 	github.com/spiffe/spire/proto/spire v0.0.0-20200103215556-34b7e3785007
-	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc v1.33.3
 )

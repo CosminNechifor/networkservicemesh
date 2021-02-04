@@ -32,5 +32,5 @@ require (
 	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200114203027-fcfc50b29cbb
-	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc v1.33.3
 )
