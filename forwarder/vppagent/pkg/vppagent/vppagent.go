@@ -157,7 +157,7 @@ func (v *VPPAgent) programMgmtInterface() error {
 	if err != nil {
 		logrus.Errorf("programMgmtInterface: An error during wait for port available: %v", err.Error())
 	}
-	conn, err := tools.DialTCPInsecure(v.endpoint())
+	conn, err := tools.DialTCP(v.endpoint())
 	if err != nil {
 		logrus.Errorf("can't dial grpc server: %v", err)
 		return err

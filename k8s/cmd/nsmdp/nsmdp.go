@@ -116,7 +116,7 @@ func (n *nsmClientEndpoints) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 func Register(ctx context.Context, kubeletEndpoint string) error {
 	span := spanhelper.FromContext(ctx, "Register")
 	defer span.Finish()
-	conn, err := tools.DialUnixInsecure(kubeletEndpoint)
+	conn, err := tools.DialUnix(kubeletEndpoint)
 	if err != nil {
 		return errors.Wrap(err, "device-plugin: cannot connect to kubelet service")
 	}
@@ -207,6 +207,7 @@ func startDeviceServer(ctx context.Context, nsm pluginapi.DevicePluginServer) er
 		return err
 	}
 
+	// New device server has to be secured for the wcm-proxy-nsmgr to connect to it
 	grpcServer := tools.NewServerInsecure()
 
 	pluginapi.RegisterDevicePluginServer(grpcServer, nsm)

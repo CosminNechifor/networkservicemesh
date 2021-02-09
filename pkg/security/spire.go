@@ -245,7 +245,7 @@ func (p *spireProvider) GetTLSConfigs(ctx context.Context) ([]*tls.Config, error
 			logrus.Errorf("Failed to fetch tlsConfig for Trust Domain: %v", id)
 			return nil, err
 		}
-		logrus.Info("Fetch tlsConfig for Trust Domain: %v", id)
+		logrus.Infof("Fetch tlsConfig for Trust Domain: %v", id)
 		tlsConfigs = append(tlsConfigs, tlsConfig)
 	}
 

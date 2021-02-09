@@ -29,7 +29,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
-	google.golang.org/grpc v1.33.3
+	google.golang.org/grpc v1.33.2
 	k8s.io/api v0.18.1
 	k8s.io/apimachinery v0.18.1
 	k8s.io/client-go v11.0.0+incompatible

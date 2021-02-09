@@ -23,7 +23,5 @@ require (
 	github.com/onsi/gomega v1.10.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
-	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2 // indirect
-	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
-	google.golang.org/grpc v1.33.3
+	google.golang.org/grpc v1.33.2
 )

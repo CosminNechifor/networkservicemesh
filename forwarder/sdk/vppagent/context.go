@@ -35,7 +35,7 @@ func Next(ctx context.Context) forwarder.ForwarderServer {
 
 // WithConfiguratorClient adds to context value with configurator client
 func WithConfiguratorClient(ctx context.Context, endpoint string) (context.Context, func() error, error) {
-	conn, err := tools.DialTCPInsecure(endpoint)
+	conn, err := tools.DialTCP(endpoint)
 	if err != nil {
 		Logger(ctx).Errorf("Can't dial grpc server: %v", err)
 		return nil, nil, err

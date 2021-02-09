@@ -27,10 +27,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/sirupsen/logrus v1.6.0
-	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2 // indirect
-	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
 	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200114203027-fcfc50b29cbb
-	google.golang.org/grpc v1.33.3
+	google.golang.org/grpc v1.33.2
 )

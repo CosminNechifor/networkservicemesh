@@ -8,9 +8,8 @@ replace (
 )
 
 require (
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.3.3
 	github.com/networkservicemesh/networkservicemesh/controlplane/api v0.0.0-00010101000000-000000000000
 	github.com/pkg/errors v0.8.1
-	google.golang.org/grpc v1.33.3
+	google.golang.org/grpc v1.29.1
 )
-

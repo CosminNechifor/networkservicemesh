@@ -208,7 +208,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
 					defer wg.Done()
 					logrus.Infof("Trying to establish a secure connection to target: %v", target)
-					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 15*time.Second)
+					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 20*time.Second)
 					defer cancelInnerContext()
 					_, err := grpc.DialContext(
 						innerContext,
@@ -262,6 +262,7 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 		// an insecure connection will be established
 		logrus.Info("Continue in insecure mode:", b.insecure)
 		opts = append(opts, grpc.WithInsecure())
+
 		return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
 	}
 }

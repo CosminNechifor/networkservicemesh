@@ -24,7 +24,7 @@ type spireProxy struct {
 }
 
 func newSpireProxy() (*spireProxy, error) {
-	cc, err := tools.DialUnixInsecure(security.SpireAgentUnixSocket)
+	cc, err := tools.DialUnix(security.SpireAgentUnixSocket)
 	if err != nil {
 		logrus.Error(err)
 		return nil, err

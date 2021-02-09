@@ -80,7 +80,7 @@ func main() {
 
 	var serverConn *grpc.ClientConn
 	for {
-		serverConn, err = tools.DialUnixInsecure(serverSocketPath)
+		serverConn, err = tools.DialUnix(serverSocketPath)
 		if err == nil {
 			break
 		}

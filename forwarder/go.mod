@@ -34,7 +34,7 @@ require (
 	go.ligato.io/vpp-agent/v3 v3.2.0
 	golang.zx2c4.com/wireguard v0.0.20200121
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200114203027-fcfc50b29cbb
-	google.golang.org/grpc v1.33.3
+	google.golang.org/grpc v1.33.2
 )
 
 replace github.com/codahale/hdrhistogram => github.com/HdrHistogram/hdrhistogram-go v0.9.0

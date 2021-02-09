@@ -27,7 +27,6 @@ require (
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
-	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2 // indirect
 	github.com/spiffe/spire/proto/spire v0.0.0-20200103215556-34b7e3785007
-	google.golang.org/grpc v1.33.3
+	google.golang.org/grpc v1.33.2
 )

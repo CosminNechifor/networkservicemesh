@@ -7,6 +7,7 @@ replace (
 	github.com/codahale/hdrhistogram => github.com/HdrHistogram/hdrhistogram-go v0.9.0
 	github.com/networkservicemesh/networkservicemesh/pkg => ./
 	github.com/uber-go/atomic => go.uber.org/atomic v1.6.0
+	github.com/spiffe/go-spiffe/v2 => github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2
 )
 
 require (
@@ -18,6 +19,9 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spiffe/go-spiffe v0.0.0-20191104192205-d29ac0a1ba99
+	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2
 	github.com/uber/jaeger-client-go v2.25.0+incompatible
-	google.golang.org/grpc v1.33.3
+	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	google.golang.org/grpc v1.33.2
 )
