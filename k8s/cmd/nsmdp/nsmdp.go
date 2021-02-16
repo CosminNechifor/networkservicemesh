@@ -116,7 +116,7 @@ func (n *nsmClientEndpoints) Allocate(ctx context.Context, reqs *pluginapi.Alloc
 func Register(ctx context.Context, kubeletEndpoint string) error {
 	span := spanhelper.FromContext(ctx, "Register")
 	defer span.Finish()
-	conn, err := tools.DialUnix(kubeletEndpoint)
+	conn, err := tools.DialUnixInsecure(kubeletEndpoint)
 	if err != nil {
 		return errors.Wrap(err, "device-plugin: cannot connect to kubelet service")
 	}
@@ -208,6 +208,8 @@ func startDeviceServer(ctx context.Context, nsm pluginapi.DevicePluginServer) er
 	}
 
 	// New device server has to be secured for the wcm-proxy-nsmgr to connect to it
+	// maybe we can make this SECURE, somehow it has to be tested
+	// https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet-authentication-authorization/#kubelet-authentication
 	grpcServer := tools.NewServerInsecure()
 
 	pluginapi.RegisterDevicePluginServer(grpcServer, nsm)
@@ -221,7 +223,7 @@ func startDeviceServer(ctx context.Context, nsm pluginapi.DevicePluginServer) er
 	}()
 	span.Logger().Infof("Check device server operational")
 	// Check if the socket of device plugin server is operation
-	conn, err := tools.DialUnix(listenEndpoint)
+	conn, err := tools.DialUnixInsecure(listenEndpoint)
 	if err != nil {
 		span.LogError(err)
 		return err

@@ -60,25 +60,35 @@ func NewServer(ctx context.Context, opts ...grpc.ServerOption) *grpc.Server {
 	span := spanhelper.FromContext(ctx, "NewServer")
 	defer span.Finish()
 
-	if GetConfig().SecurityProvider != nil {
-		logrus.Info("Secure branch in NewServer")
-		securitySpan := spanhelper.FromContext(span.Context(), "GetCertificate")
-		tlscfg, err := GetConfig().SecurityProvider.GetServerTLSConfig(ctx)
-		if err != nil {
-			logrus.Error("Failed to retrieve server tls config.")
-			return nil
-		}
-		logrus.Info("Server will be started in secure mode: ", tlscfg)
-		opts = append(opts, grpc.Creds(credentials.NewTLS(tlscfg)))
-		logrus.Info("Opts:", opts)
-		securitySpan.Finish()
+	insecure, err := IsInsecure()
+	if err != nil {
+		logrus.Fatal(err.Error())
 	}
 
 	if GetConfig().OpenTracing {
-		span.Logger().Infof("GRPC.NewServer with open tracing enabled")
+		span.Logger().Infof("GRPC.NewServer with open tracing enabled.")
 		opts = append(opts, openTracingOpts()...)
 	}
-	logrus.Info("Returning grpc server.")
+
+	if insecure {
+		logrus.Info("Returning insecure GRPC server.")
+		return grpc.NewServer(opts...)
+	}
+
+	if GetConfig().SecurityProvider == nil {
+		logrus.Fatal("Could not detect any security provider. Crashing...")
+	}
+
+	securitySpan := spanhelper.FromContext(span.Context(), "GetCertificate")
+	defer securitySpan.Finish()
+
+	tlscfg, err := GetConfig().SecurityProvider.GetServerTLSConfig(ctx)
+	if err != nil {
+		logrus.Fatal("Failed to retrieve server tls config.")
+	}
+
+	logrus.Info("Server will be started in secure mode using tlsConfig:", tlscfg)
+	opts = append(opts, grpc.Creds(credentials.NewTLS(tlscfg)))
 	return grpc.NewServer(opts...)
 }
 
@@ -176,80 +186,16 @@ func (b *dialBuilder) Timeout(t time.Duration) *dialBuilder {
 	return b
 }
 
+
+func findCertificate(tlsConfigs []*tls.Config) *tls.Config {
+	return nil
+}
+
 func (b *dialBuilder) DialContextFunc() dialContextFunc {
 	return func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 		logrus.Infof("Trying to establish connection to target: %v", target)
 		if GetConfig().OpenTracing {
 			b.opts = append(b.opts, OpenTracingDialOptions()...)
-		}
-
-		b.opts = append(b.opts, grpc.WithBlock())
-
-		logrus.Info("Insecure:", b.insecure)
-		if !b.insecure && GetConfig().SecurityProvider != nil {
-			logrus.Info("Gets in the secure if branch")
-			tlsConfigs, err := GetConfig().SecurityProvider.GetTLSConfigs(ctx)
-			if err != nil {
-				return nil, err
-			}
-
-			tlsConfigChan := make(chan *tls.Config, 1)
-			defer close(tlsConfigChan)
-
-			logrus.Infof("Found %d tlsconfigs.", len(tlsConfigs))
-
-			// In order to find which is the right tls config used to connect to the target
-			// we try to establish a GRPC connection using each tlsConfig and a inner context
-			// with 15 seconds timout. If the connection is established successfully the right tls config
-			// has been found.
-			var wg sync.WaitGroup
-			wg.Add(len(tlsConfigs))
-			for _, tlsConfig := range tlsConfigs {
-				go func(tlsConfig *tls.Config, wg *sync.WaitGroup) {
-					defer wg.Done()
-					logrus.Infof("Trying to establish a secure connection to target: %v", target)
-					innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 20*time.Second)
-					defer cancelInnerContext()
-					_, err := grpc.DialContext(
-						innerContext,
-						target,
-						append(
-							append(opts, b.opts...),
-							grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-						)...,
-					)
-					if err == nil {
-						logrus.Info("Found the right tls certificate:", tlsConfig)
-						tlsConfigChan <- tlsConfig
-					}
-				}(tlsConfig, &wg)
-			}
-			wg.Wait()
-
-			if len(tlsConfigChan) != 0 {
-				tlsConfig := <-tlsConfigChan
-				logrus.Infof("Establishing secure connection to target: %v using tlsConfig: %v", target, tlsConfig)
-				conn, err := grpc.DialContext(
-					ctx,
-					target,
-					append(
-						append(opts, b.opts...),
-						grpc.WithTransportCredentials(credentials.NewTLS(
-							tlsConfig,
-						)),
-					)...,
-				)
-				if err != nil {
-					logrus.Info("Error occurred while trying to establish connection to: %v. Error: %v", target, err.Error())
-					logrus.Info("Continue in insecure mode:", b.insecure)
-				}
-				return conn, nil
-			} else {
-				logrus.Errorf(
-					"Could not find tlsConfig to establish a connection with target: %v",
-					target,
-				)
-			}
 		}
 
 		if b.t != 0 {
@@ -258,12 +204,83 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			defer cancel()
 		}
 
-		// if connection is insecure or there is no security provider
-		// an insecure connection will be established
-		logrus.Info("Continue in insecure mode:", b.insecure)
-		opts = append(opts, grpc.WithInsecure())
+		if b.insecure || GetConfig().SecurityProvider == nil {
+			// if connection is insecure or there is no security provider
+			// an insecure connection will be established
+			logrus.Info("Establishing insecure connection to target:", target)
+			b.opts = append(b.opts, grpc.WithBlock())
+			opts = append(opts, grpc.WithInsecure())
 
-		return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
+			return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
+		}
+
+		logrus.Info("Gets in the secure if branch")
+		tlsConfigs, err := GetConfig().SecurityProvider.GetTLSConfigs(ctx)
+		if err != nil {
+			logrus.Fatal(
+				"Failed to retrieve tlsConfigs from security provider with error:",
+				err.Error(),
+			)
+		}
+
+		tlsConfigChan := make(chan *tls.Config, 1)
+		defer close(tlsConfigChan)
+
+		logrus.Infof("Found %d tlsconfigs.", len(tlsConfigs))
+
+		// In order to find which is the right tls config used to connect to the target
+		// we try to establish a GRPC connection using each tlsConfig and a inner context
+		// with 15 seconds timout. If the connection is established successfully the right tls config
+		// has been found.
+		var wg sync.WaitGroup
+		wg.Add(len(tlsConfigs))
+		for i := 0; i < len(tlsConfigs); i++ {
+			logrus.Infof("Index: %d\nTlsConfig:%v\n", i, tlsConfigs[i])
+			go func(index int, tlsConfigs []*tls.Config, wg *sync.WaitGroup) {
+				defer wg.Done()
+				tlsConfig := tlsConfigs[index]
+				logrus.Infof("Trying to establish a secure connection to target: %v", target)
+				innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 20*time.Second)
+				defer cancelInnerContext()
+				_, err := grpc.DialContext(
+					innerContext,
+					target,
+					append(
+						append(opts, b.opts...),
+						grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+					)...,
+				)
+				if err == nil {
+					logrus.Info("Found the right tls certificate:", tlsConfig)
+					tlsConfigChan <- tlsConfig
+				}
+			}(i, tlsConfigs, &wg)
+		}
+		wg.Wait()
+
+		if len(tlsConfigChan) == 0 {
+			logrus.Fatalf(
+				"Could not find tlsConfig to establish a connection with target: %v",
+				target,
+			)
+		}
+
+		tlsConfig := <-tlsConfigChan
+		logrus.Infof("Establishing secure connection to target: %v using tlsConfig: %v", target, tlsConfig)
+		conn, err = grpc.DialContext(
+			ctx,
+			target,
+			append(
+				append(opts, b.opts...),
+				grpc.WithTransportCredentials(credentials.NewTLS(
+					tlsConfig,
+				)),
+			)...,
+		)
+		if err != nil {
+			logrus.Fatalf("Error occurred while trying to establish connection to: %v. Error: %v", target, err.Error())
+		}
+		return conn, nil
 	}
 }
 

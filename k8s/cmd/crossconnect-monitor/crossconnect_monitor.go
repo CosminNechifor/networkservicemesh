@@ -33,7 +33,7 @@ func monitorCrossConnects(address string, continuousMonitor bool) {
 	logrus.Infof("Starting CrossConnections Monitor on %s", address)
 	conn, err := tools.DialTCP(address)
 	if err != nil {
-		logrus.Errorf("failure to communicate with the socket %s with error: %+v", address, err)
+		logrus.Fatal("failure to communicate with the socket %s with error: %+v", address, err)
 		return
 	}
 	defer conn.Close()
