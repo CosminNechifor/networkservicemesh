@@ -186,11 +186,6 @@ func (b *dialBuilder) Timeout(t time.Duration) *dialBuilder {
 	return b
 }
 
-
-func findCertificate(tlsConfigs []*tls.Config) *tls.Config {
-	return nil
-}
-
 func (b *dialBuilder) DialContextFunc() dialContextFunc {
 	return func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 		logrus.Infof("Trying to establish connection to target: %v", target)
@@ -222,27 +217,14 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 				err.Error(),
 			)
 		}
-
-		tlsConfigChan := make(chan *tls.Config, 1)
-		defer close(tlsConfigChan)
-
 		logrus.Infof("Found %d tlsconfigs.", len(tlsConfigs))
 
-		// In order to find which is the right tls config used to connect to the target
-		// we try to establish a GRPC connection using each tlsConfig and a inner context
-		// with 15 seconds timout. If the connection is established successfully the right tls config
-		// has been found.
-		var wg sync.WaitGroup
-		wg.Add(len(tlsConfigs))
-		for i := 0; i < len(tlsConfigs); i++ {
-			logrus.Infof("Index: %d\nTlsConfig:%v\n", i, tlsConfigs[i])
-			go func(index int, tlsConfigs []*tls.Config, wg *sync.WaitGroup) {
-				defer wg.Done()
-				tlsConfig := tlsConfigs[index]
-				logrus.Infof("Trying to establish a secure connection to target: %v", target)
-				innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 20*time.Second)
+		tlsConfigChan := make(chan *tls.Config, 1)
+		go func(tlsConfigs []*tls.Config, tlsConfigChan chan<- *tls.Config) {
+			for _, tlsConfig := range tlsConfigs {
+				innerContext, cancelInnerContext := context.WithTimeout(context.TODO(), 10*time.Second)
 				defer cancelInnerContext()
-				_, err := grpc.DialContext(
+				conn, err := grpc.DialContext(
 					innerContext,
 					target,
 					append(
@@ -253,20 +235,16 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 				if err == nil {
 					logrus.Info("Found the right tls certificate:", tlsConfig)
 					tlsConfigChan <- tlsConfig
+					_ = conn.Close()
+					close(tlsConfigChan)
+					break
 				}
-			}(i, tlsConfigs, &wg)
-		}
-		wg.Wait()
-
-		if len(tlsConfigChan) == 0 {
-			logrus.Fatalf(
-				"Could not find tlsConfig to establish a connection with target: %v",
-				target,
-			)
-		}
+			}
+		}(tlsConfigs, tlsConfigChan)
 
 		tlsConfig := <-tlsConfigChan
-		logrus.Infof("Establishing secure connection to target: %v using tlsConfig: %v", target, tlsConfig)
+
+		logrus.Info("Trying to establish connection using tlsConfig:", tlsConfig)
 		conn, err = grpc.DialContext(
 			ctx,
 			target,
