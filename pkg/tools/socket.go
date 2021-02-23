@@ -209,7 +209,6 @@ func (b *dialBuilder) DialContextFunc() dialContextFunc {
 			return grpc.DialContext(ctx, target, append(opts, b.opts...)...)
 		}
 
-		logrus.Info("Gets in the secure if branch")
 		tlsConfigs, err := GetConfig().SecurityProvider.GetTLSConfigs(ctx)
 		if err != nil {
 			logrus.Fatal(
